@@ -312,7 +312,7 @@ if __name__ == '__main__':
     dac.set_newWaveform('12','0','100.0','10.0','0') # sinewave
     # dac.set_newWaveform('12','1','100.0','5.0','0') # triangle
 
-    # test
+    # test (DAC Bandwidth and Mode)
     dac.set_bandwidth(10, "HBW")
     bw = dac.get_bandwidth(1)
     print("Bandwidth: " + bw)
