@@ -291,8 +291,33 @@ class SP1060(VisaInstrument, SP1060Reader):
         time.sleep(0.01)
         self.write('C AWG-' + memsave + ' START') # Apply Wave-Function to Wave-Memory Now.
 
+    def set_bandwidth(self, chan, code):
+            self.write('{:0} {:1}'.format(chan, code))
+
+    def get_bandwidth(self, chan):
+            dac_code = self.write('{:0} BW?'.format(chan))
+            return dac_code
+        
+    def read_mode(self, chan):
+            dac_code = self.write('{:0} M?'.format(chan))
+            return dac_code
+
 if __name__ == '__main__':    
+    
+    # test (DAC voltage and waveforms)
     dac = SP1060('LNHR_dac3', 'TCPIP0::192.168.0.5::23::SOCKET')
-    dac.set_newWaveform('12','0','100.0','5.0','0') # sinewave
-    #dac.set_newWaveform('12','1','100.0','5.0','0') # triangle
+    dac.ch1.volt.set(8)
+    print(dac.ch12.volt.get())
+    time.sleep(2)
+    dac.set_newWaveform('12','0','100.0','10.0','0') # sinewave
+    # dac.set_newWaveform('12','1','100.0','5.0','0') # triangle
+
+    # test
+    dac.set_bandwidth(10, "HBW")
+    bw = dac.get_bandwidth(1)
+    print("Bandwidth: " + bw)
+    time.sleep(1)
+    mode = dac.read_mode(12)
+    print("Mode: " + mode)
+    time.sleep(5)
     dac.close()
