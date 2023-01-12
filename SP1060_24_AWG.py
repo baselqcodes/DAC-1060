@@ -160,6 +160,7 @@ class SP1060(VisaInstrument, SP1060Reader):
         Query status of all DAC channels
         """
         reply = self.write('All S?')
+        print(reply)
         return reply.replace("\r\n","").split(';')
     
     def all_on(self):
@@ -265,30 +266,32 @@ class SP1060(VisaInstrument, SP1060Reader):
         elif (wavemem == '3'):
             memsave = 'D'
 
+        sleep_time = 0.02
+
         self.write('C WAV-B CLR') # Wave-Memory Clear.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG MODE 0') # generate new Waveform.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG WF ' + waveform) # set the waveform.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG DF ' + frequency) # set frequency.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG AMP ' + amplitude) # set the amplitude.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG WMEM ' + wavemem) # set the Wave-Memory.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG WFUN 0') # COPY to Wave-MEM -> Overwrite.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG LIN ' + channel) # COPY to Wave-MEM -> Overwrite.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C AWG-' + memsave + ' CH ' + channel) # Write the Selected DAC-Channel for the AWG.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C SWG APPLY') # Apply Wave-Function to Wave-Memory Now.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C WAV-' + memsave + ' SAVE') # Save the selected Wave-Memory (WAV-A/B/C/D) to the internal volatile memory.
-        time.sleep(0.01)
+        time.sleep(sleep_time)
         self.write('C WAV-' + memsave + ' WRITE') # Write the Wave-Memory (WAV-A/B/C/D) to the corresponding AWG-Memory (AWG-A/B/C/D).
-        time.sleep(0.01)
+        time.sleep(0.5)
         self.write('C AWG-' + memsave + ' START') # Apply Wave-Function to Wave-Memory Now.
 
     def set_bandwidth(self, chan, code):
@@ -303,21 +306,27 @@ class SP1060(VisaInstrument, SP1060Reader):
             return dac_code
 
 if __name__ == '__main__':    
-    
-    # test (DAC voltage and waveforms)
     dac = SP1060('LNHR_dac3', 'TCPIP0::192.168.0.5::23::SOCKET')
     dac.ch1.volt.set(8)
     print(dac.ch12.volt.get())
+    status_all = dac.query_all()
+    print("Query_all:")
+    print(status_all)
     time.sleep(2)
-    dac.set_newWaveform('12','0','100.0','10.0','0') # sinewave
-    # dac.set_newWaveform('12','1','100.0','5.0','0') # triangle
-
-    # test (DAC Bandwidth and Mode)
+    print("Setting sinewave")
+    dac.set_newWaveform('12','0','50.0','5.0','0') # sinewave
+    time.sleep(2)
+    print("Setting Triangle")
+    dac.set_newWaveform('12','1','50.0','5.0','0') # triangle
+    time.sleep(2)
+    print("Setting Sawtooth")
+    dac.set_newWaveform('12','2','50.0','5.0','0') # sawtooth
+    # test
     dac.set_bandwidth(10, "HBW")
     bw = dac.get_bandwidth(1)
     print("Bandwidth: " + bw)
     time.sleep(1)
     mode = dac.read_mode(12)
     print("Mode: " + mode)
-    time.sleep(5)
+    time.sleep(1)
     dac.close()
