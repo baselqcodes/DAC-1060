@@ -329,8 +329,6 @@ class SP1060(VisaInstrument, SP1060Reader):
     Channel)
     """
 
-    def interpretSETResponse():
-        pass
 
     """
     Set a specific DAC channel to a specified voltage.
@@ -338,40 +336,47 @@ class SP1060(VisaInstrument, SP1060Reader):
     @voltage - hexadecimal voltage value
     """
     def set_chan_voltage(self, chan, voltage):
-        return self.write('{:0} {:X}'.format(chan, voltage))
+        code = self.write('{:0} {:X}'.format(chan, voltage))
+        return self.handleDACSetErrors(code) 
 
     """
     Set all dac channels to a specific voltage.
     @voltage - hexadecimal voltage value
     """
     def set_all_voltage(self, voltage):
-        return self.write('ALL {:X}'.format(voltage))
+        code = self.write('ALL {:X}'.format(voltage))
+        return self.handleDACSetErrors(code) 
     
     """
     turn on the specified channel
     @chan - integer 
     """
     def set_chan_on(self, chan):
-        return self.write('{0} ON'.format(chan))
+        code = self.write('{0} ON'.format(chan))
+        return self.handleDACSetErrors(code) 
 
     """
     turn off the specified channel
     @chan - integer 
     """
     def set_chan_off(self, chan):
-        return self.write('{0} OFF'.format(chan))
+        code = self.write('{0} OFF'.format(chan))
+        return self.handleDACSetErrors(code) 
 
     """
     Turn on all channels.
     """
     def set_all_on(self):
-        return self.write('ALL ON')
+        code = self.write('ALL ON')
+        return self.handleDACSetErrors(code) 
+      
       
     """
     Turn off all channels.
     """
     def set_all_off(self):
-        return self.write('ALL OFF')
+        code = self.write('ALL OFF')
+        return self.handleDACSetErrors(code) 
 
     """
     Set the bandwidth of a specified channel (High or Low)
@@ -379,13 +384,15 @@ class SP1060(VisaInstrument, SP1060Reader):
     @code - string ("HBW"/"LBW")
     """
     def set_chan_bandwidth(self, chan, code):
-            return self.write('{:0} {:1}'.format(chan, code))
+        code = self.write('{} {}'.format(chan, code))
+        return self.handleDACSetErrors(code) 
     """
     Set the bandwidth of all channels (High or Low)
     @code - string ("HBW"/"LBW")
     """
     def set_all_bandwidth(self, code):
-            return self.write('ALL {:1}'.format(code))
+        code = self.write('ALL {}'.format(code))
+        return self.handleDACSetErrors(code) 
 
 #### All AWG SET Commands return a numeric response:
     """
@@ -404,10 +411,10 @@ class SP1060(VisaInstrument, SP1060Reader):
     @value - hexadecimal value of voltage
     """
     def set_adr_AWGmem(self, mem, adr, value):
-        return self.write("AWG-{0} {:X} {:X}".format(mem, adr, value))
+        code = self.write("AWG-{} {:X} {:X}".format(mem, adr, value))
 
     def set_all_AWGMem(self, mem, value):
-        return self.write("AWG-{0} ALL {:X}".format(mem, value))
+        code = self.write("AWG-{} ALL {:X}".format(mem, value))
 
 #### All WAV SET Commands return a numeric response:
     """
@@ -426,10 +433,10 @@ class SP1060(VisaInstrument, SP1060Reader):
     @value - hexadecimal value of voltage
     """
     def set_adr_WAVMem(self, mem, adr, value):
-        return self.write("WAV-{0} {:X} {:X}".format(mem, adr, value))
+        code = self.write("WAV-{0} {:X} {:X}".format(mem, adr, value))
 
     def set_all_WAVMem(self, mem, value):
-        return self.write("WAV-{0} ALL {:X}".format(mem, value))
+        code = self.write("WAV-{0} ALL {:X}".format(mem, value))
 
 #### POLY command return codes:
     """
@@ -443,12 +450,13 @@ class SP1060(VisaInstrument, SP1060Reader):
     """
     Set polynomial coefficients
     @mem - character of a polynomial memory
-    @coefs - string of space-separated floating point values (can be scientific notation)
-    TODO have coefs be a list of floats, and create the string within the function.
+    @coefs - list of floating point values representing the coefficients (a0, a1, a2, a3...)
+    
     """
     def set_polynomial(self, mem, coefs):
         fs = [str(c) for c in coefs]
-        return self.write('POLY-{} {}'.format(mem, ' '.join(fs)))
+        code = self.write('POLY-{} {}'.format(mem, ' '.join(fs)))
+
 
 ############################################################
 
@@ -567,16 +575,6 @@ class SP1060(VisaInstrument, SP1060Reader):
         reply = self.write('POLY-{0}?'.format(mem))
         return reply.replace("\r\n","").split(';')
 
-
-    def empty_buffer(self):
-        # make sure every reply was read from the DAC TODO
-       # while self.visa_handle.bytes_in_buffer:
-       #     print(self.visa_handle.bytes_in_buffer)
-       #     print("Unread bytes in the buffer of DAC SP1060 have been found. Reading the buffer ...")
-       #     print(self.visa_handle.read_raw())
-       #      self.visa_handle.read_raw()
-       #     print("... done")
-        self.visa_handle.clear() 
              
 ############################################################
 
@@ -1432,8 +1430,8 @@ class SP1060(VisaInstrument, SP1060Reader):
 
     """
     Creates a linear scan of the given parameter (for example a DAC channel), from a START value
-    to a STOP value, with num_points pauses. A time delay is made before a measured dependent parameter is 
-    read and stored into a list.  The list is returned after the scan.
+    to a STOP value, with num_points pauses/measurements. A time delay is made before a measured 
+    dependent parameter is read and stored into a list.  The list is returned after the scan.
 
     @param - the independent parameter.  Must have a set() method
     @start - the starting value for the scan
@@ -1472,7 +1470,7 @@ class SP1060(VisaInstrument, SP1060Reader):
     @stop1 - the stopping value for the outer scan
     @num_points1 - the number of points within the outer scan.
     @delay1 - the time to pause at each point of the outer scan before reading any dependent parameters.
-    @param2 - the independent outer-loop parameter.  Must have a set() method
+    @param2 - the independent inner-loop parameter.  Must have a set() method
     @start2 - the starting value for the inner scan
     @stop2 - the stopping value for the inner scan
     @num_points2 - the number of points within the inner scan.
@@ -1512,8 +1510,82 @@ class SP1060(VisaInstrument, SP1060Reader):
             data.append(line_data)
         return data
 
+    def handleDACSetErrors(code):
+        num = int(code)
+        if num is 0:
+            return num
+        elif num is 1:
+            print("Invalid DAC-Channel")
+        elif num is 2:
+            print("Missing DAC-Value, Status or BW")
+        elif num is 3:
+            print("DAC-Value out of range")
+        elif num is 4:
+            print("Mistyped")
+        elif num is 5:
+            print("Writing not allowed (Ramp/Step-Generator or AWG are running on this DAC-Channel)")
+        return num
 
+    def handleAWGSetErrors(code):
+        num = int(code)
+        if num is 0:
+            return num
+        if num is 1:
+            print("Invalid AWG-Memory")
+        elif num is 2:
+            print("Missing AWG-Address and/or AWG-Value")
+        elif num is 3:
+            print("AWG-Address and/or AWG-Value out of range")
+        elif num is 4:
+            print("Mistyped")
+        return num
+
+    def handleWAVSetErrors(code):
+        num = int(code)
+        if num is 0:
+            return num
+        if num is 1:
+            print("Invalid WAV-Memory")
+        elif num is 2:
+            print("Missing WAV-Address and/or WAV-Voltage")
+        elif num is 3:
+            print("WAV-Address and/or WAV-Voltage out of range")
+        elif num is 4:
+            print("Mistyped")
+        return num
+
+    def handlePOLYSetErors(code):
+        num = int(code)
+        if num is 0:
+            return num
+        if num is 1:
+            print("Invalid Polynomial Name")
+        elif num is 2:
+            print("Missing Polynomial Coefficient(s)")
+        elif num is 4:
+            print("Mistyped")
+        return num
     
+    """
+    After each CONTROL Write command, an error code will be returned.  '0' indicates no error. 
+    If you want an interpretation printed to standard output, pass the code into this method.
+    Additional actions should be taken in the code surrounding the write function.
+    You should at least check for '0', to know that your program can continue running normally.
+    """
+    def handleCONTROLWriteErrors(code):
+        num = int(code)
+        if num is 0:
+            return num
+        if num is 1:
+            print("Invalid DAC-Channel")
+        elif num is 2:
+            print("Invalid Parameter")
+        elif num is 4:
+            print("Mistyped")
+        elif num is 5:
+            print("Writing not allowed")
+
+
 
 
 
